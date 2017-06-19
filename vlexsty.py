@@ -31,7 +31,7 @@ Usage:
 
 bindsocket = socket.socket()
 bindsocket.bind(('', PORT))
-bindsocket.listen(BUFFER)
+bindsocket.listen(BUFFERLEN)
 
 def handle_client(conn, data):
     with open(LOG_PATH, 'a') as f:
