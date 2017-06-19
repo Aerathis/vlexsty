@@ -26,7 +26,8 @@ else:
         print """
 Usage:
     python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY)
-    """ 
+    """
+        sys.exit(1)
 
 bindsocket = socket.socket()
 bindsocket.bind(('', PORT))
