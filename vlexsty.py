@@ -12,20 +12,20 @@ LOG_PATH = None
 if len(args) > 0 and args[0].lower() == 'help':
     print """
 Usage:
-    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY)
+    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY) (LOG_PATH)
     """
     sys.exit(0)
 else:
     if len(args) == 5:
-        PORT = args[0]
-        BUFFERLEN = args[1]
+        PORT = int(args[0])
+        BUFFERLEN = int(args[1])
         SERVER_CERT = args[2]
         SERVER_KEY = args[3]
         LOG_PATH = args[4]
     else:
         print """
 Usage:
-    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY)
+    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY) (LOG_PATH)
     """
         sys.exit(1)
 
