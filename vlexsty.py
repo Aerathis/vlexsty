@@ -33,15 +33,33 @@ bindsocket = socket.socket()
 bindsocket.bind(('', PORT))
 bindsocket.listen(BUFFERLEN)
 
+def build_resp(code, message=""):
+    codeText = {
+        200: 'OK',
+        400: 'Bad Request',
+        500: 'Internal Server Error'
+    }
+    return 'HTTP/1.1 ' + str(code) + ' ' + codeText[code] + '\nContent-Type: text/plain' + '\n\n' + message
+
 def handle_client(conn, data):
     with open(LOG_PATH, 'a') as f:
         f.write(data + '\n')
+    conn.send(build_resp(200))
 
 def connect_client(conn):
-    data = conn.read()
-    while data:
-        handle_client(conn, data)
-        data = conn.read()
+    rawData = conn.read()
+    clPos = rawData.lower().find('\r\ncontent-length: ')
+    endHeaderPos = rawData.find('\r\n\r\n')
+    if clPos >= 0 and endHeaderPos >= 0:
+        endCl = rawData.find('\r\n', clPos + 17)
+        cl = int(rawData[clPos + 17:endCl])
+        bodyData = rawData[endHeaderPos+4:]
+        if len(bodyData) == cl:
+            handle_client(conn, bodyData)
+        else:
+            conn.send(build_resp(400, 'Missing data in request'))
+    else:
+        conn.send(build_resp(400, 'Missing Content length or body'))
 
 while True:
     newsock, _ = bindsocket.accept()
