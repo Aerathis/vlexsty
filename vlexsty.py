@@ -1,72 +1,94 @@
-import socket, ssl, sys
+'''Simple module that writes out received crash reports to a log file to be forwarded'''
+import socket
+import ssl
+import sys
+import os
 
-args = sys.argv[1:]
+ARGS = sys.argv[1:]
 
-PORT = None
-BUFFERLEN = None
-SERVER_CERT = None
-SERVER_KEY = None
-LOG_PATH = None
+DEFAULT_CONF_PATH = '/etc/vlexsty.conf'
+
+def build_config_map(values_list):
+    '''Build up a configuration map from values read from the config file'''
+    config_map = {}
+    for config_key, config_value in values_list:
+        config_map[config_key] = config_value
+    return config_map
+
+def read_conf(conf_path=None):
+    '''Read the contents of the config file from either the given path or the default path'''
+    if conf_path is None:
+        if os.path.exists(DEFAULT_CONF_PATH) and os.path.isfile(DEFAULT_CONF_PATH):
+            conf_path = DEFAULT_CONF_PATH
+        else:
+            print "No configuration file specified and no default file"
+            sys.exit(1)
+
+    with open(conf_path, 'r') as conf_file:
+        conf_contents = conf_file.read()
+
+    conf_values = [(k, v) for k, v in
+                   [x.split('=') for x in conf_contents.split('\n') if len(x.split('=')) > 1]]
+
+    return build_config_map(conf_values)
 
 
-if len(args) > 0 and args[0].lower() == 'help':
+def usage():
+    '''Print out the simple usage help message'''
     print """
 Usage:
-    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY) (LOG_PATH)
-    """
-    sys.exit(0)
-else:
-    if len(args) == 5:
-        PORT = int(args[0])
-        BUFFERLEN = int(args[1])
-        SERVER_CERT = args[2]
-        SERVER_KEY = args[3]
-        LOG_PATH = args[4]
-    else:
-        print """
-Usage:
-    python vlexsty.py (LISTEN_PORT) (BACKLOG_SIZE) (PATH_TO_SERVER_CERTIFICATE) (PATH_TO_SERVER_KEY) (LOG_PATH)
-    """
-        sys.exit(1)
+    sudo systemctl start vlexsty
+"""
 
-bindsocket = socket.socket()
-bindsocket.bind(('', PORT))
-bindsocket.listen(BUFFERLEN)
-
-def build_resp(code, message=""):
-    codeText = {
+def build_resp(code, msg=''):
+    '''Build a simple HTTP response string to send back to the client'''
+    text = {
         200: 'OK',
         400: 'Bad Request',
         500: 'Internal Server Error'
     }
-    return 'HTTP/1.1 ' + str(code) + ' ' + codeText[code] + '\nContent-Type: text/plain' + '\n\n' + message
+    return 'HTTP/1.1 {0} {1}\nContent-Type: text/plain\n\n{2}'.format(str(code), text[code], msg)
 
-def handle_client(conn, data):
-    with open(LOG_PATH, 'a') as f:
-        f.write(data + '\n')
-    conn.send(build_resp(200))
+def handle_client(client, data, log_path):
+    '''Handle the request from the client'''
+    print data
+    with open(log_path, 'a') as log_file:
+        log_file.write(data + '\n')
+    client.send(build_resp(200))
 
-def connect_client(conn):
-    rawData = conn.read()
-    clPos = rawData.lower().find('\r\ncontent-length: ')
-    endHeaderPos = rawData.find('\r\n\r\n')
-    if clPos >= 0 and endHeaderPos >= 0:
-        endCl = rawData.find('\r\n', clPos + 17)
-        cl = int(rawData[clPos + 17:endCl])
-        bodyData = rawData[endHeaderPos+4:]
-        if len(bodyData) == cl:
-            handle_client(conn, bodyData)
-        else:
-            conn.send(build_resp(400, 'Missing data in request'))
+def connect_client(client, log_path):
+    '''Establish the client connection and read data from the request'''
+    raw_data = client.read()
+    length_pos = raw_data.lower().find('\r\ncontent-length: ')
+    if length_pos > 0:
+        end_header_pos = raw_data.find('\r\n\r\n')
+        body_data = raw_data[end_header_pos + 4:]
+        handle_client(client, body_data, log_path)
+
+def start_server(provided_conf=None):
+    '''Start server listening based on either provided config or default config'''
+    config = read_conf(provided_conf)
+    port = config['port']
+    backlog = config['backlog']
+    server_cert = config['server_cert']
+    server_key = config['server_key']
+    log_path = config['log_path']
+    bindsocket = socket.socket()
+    bindsocket.bind(('', int(port)))
+    bindsocket.listen(int(backlog))
+    while True:
+        newsock, _ = bindsocket.accept()
+        conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
+        try:
+            connect_client(conn, log_path)
+        finally:
+            conn.shutdown(socket.SHUT_RDWR)
+            conn.close()
+
+if len(sys.argv) > 1:
+    if sys.argv[1].lower() == 'help':
+        usage()
     else:
-        conn.send(build_resp(400, 'Missing Content length or body'))
-
-while True:
-    newsock, _ = bindsocket.accept()
-    conn = ssl.wrap_socket(newsock, server_side=True, certfile=SERVER_CERT, keyfile=SERVER_KEY)
-
-    try:
-        connect_client(conn)
-    finally:
-        conn.shutdown(socket.SHUT_RDWR)
-        conn.close()
+        start_server(sys.argv[1])
+else:
+    start_server()
