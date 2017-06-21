@@ -81,8 +81,8 @@ def start_server(provided_conf=None):
         conn = None
         try:
             conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
-        except e:
-            print "Error trying to wrap connection", e
+        except:
+            print "Error trying to wrap connection", sys.exc_info()[0]
             continue
         try:
             connect_client(conn, log_path)
