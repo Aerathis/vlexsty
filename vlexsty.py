@@ -78,7 +78,12 @@ def start_server(provided_conf=None):
     bindsocket.listen(int(backlog))
     while True:
         newsock, _ = bindsocket.accept()
-        conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
+        conn = None
+        try:
+            conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
+        except e:
+            print "Error trying to wrap connection", e
+            continue
         try:
             connect_client(conn, log_path)
         finally:
