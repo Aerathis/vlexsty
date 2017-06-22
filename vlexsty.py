@@ -3,6 +3,7 @@ import socket
 import ssl
 import sys
 import os
+import errno
 
 ARGS = sys.argv[1:]
 
@@ -86,8 +87,11 @@ def start_server(provided_conf=None):
             continue
         try:
             connect_client(conn, log_path)
-        finally:
             conn.shutdown(socket.SHUT_RDWR)
+        except socket.error, exc:
+            if exc.errno != errno.ENOTCONN:
+                raise
+        finally:
             conn.close()
 
 if len(sys.argv) > 1:
