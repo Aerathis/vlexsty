@@ -89,8 +89,8 @@ def start_server(provided_conf=None):
             connect_client(conn, log_path)
             conn.shutdown(socket.SHUT_RDWR)
         except socket.error, exc:
-            if exc.errno != errno.ENOTCONN:
-                raise
+            print exc
+            continue
         finally:
             conn.close()
 
