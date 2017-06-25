@@ -59,12 +59,23 @@ def handle_client(client, data, log_path):
 
 def connect_client(client, log_path):
     '''Establish the client connection and read data from the request'''
-    raw_data = client.read()
-    length_pos = raw_data.lower().find('\r\ncontent-length: ')
-    if length_pos > 0:
-        end_header_pos = raw_data.find('\r\n\r\n')
-        body_data = raw_data[end_header_pos + 4:]
-        handle_client(client, body_data, log_path)
+    data = client.read()
+    length_pos = data.lower().find('\r\ncontent-length: ')
+    if length_pos < 0:
+        client.send(build_resp(400, 'No content length provided'))
+        return
+    content_length = int(data[length_pos + 18:data.find('\r\n', length_pos + 18)])
+    print content_length
+    end_header_pos = data.find('\r\n\r\n')
+    print end_header_pos
+    if end_header_pos == -1 or (end_header_pos + 4) >= len(data):
+        raw_data = ''
+    else:
+        raw_data = data[end_header_pos + 4:]
+    while len(raw_data) < content_length:
+        chunk = client.read()
+        raw_data += chunk
+    handle_client(client, raw_data, log_path)
 
 def start_server(provided_conf=None):
     '''Start server listening based on either provided config or default config'''
@@ -82,8 +93,9 @@ def start_server(provided_conf=None):
         conn = None
         try:
             conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
-        except:
+        except IOError, exc:
             print "Error trying to wrap connection", sys.exc_info()[0]
+            print exc
             continue
         try:
             connect_client(conn, log_path)
