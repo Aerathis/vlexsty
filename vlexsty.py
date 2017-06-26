@@ -4,6 +4,7 @@ import ssl
 import sys
 import os
 import errno
+import traceback
 
 ARGS = sys.argv[1:]
 
@@ -95,7 +96,7 @@ def start_server(provided_conf=None):
             conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
         except IOError, exc:
             print "Error trying to wrap connection", sys.exc_info()[0]
-            print exc
+            traceback.print_exc()
             continue
         try:
             connect_client(conn, log_path)
