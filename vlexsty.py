@@ -93,7 +93,7 @@ def start_server(provided_conf=None):
         newsock, _ = bindsocket.accept()
         conn = None
         try:
-            conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key)
+            conn = ssl.wrap_socket(newsock, server_side=True, certfile=server_cert, keyfile=server_key, do_handshake_on_connect=False)
         except IOError, exc:
             print "Error trying to wrap connection", sys.exc_info()[0]
             traceback.print_exc()
